@@ -2,23 +2,39 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vanilla App Template</title>
-    <link rel="stylesheet" href="./css/styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/simplelightbox/2.1.0/simple-lightbox.min.css"
+      integrity="sha512-j3AX8s23FIaVZdL9+vnaW0+jACF6z8gU4z6VwuEgRz2V6u59dRv56HtANADzTXHr3sFlafQ+hQsL6P0swTfLpA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/izitoast/1.4.0/css/iziToast.min.css"
+      integrity="sha512-S8d1IhyC2xJ1URb2iOg48hZ2nW0rnspXE1Zhy/ZJ7k8ccgPPUJ9ln6kL2DkA00vgFJ9PZ8gp0gk8YENpLQVMgw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link rel="stylesheet" href="./css/style.css" />
+    <title>Homework 4</title>
   </head>
   <body>
-    <load ="partials/header.html" />
-
-    <section>
-      <h1>Lorem ipsum dolor sit amet.</h1>
-      <!-- Path to images as from index.html file -->
-      <img src="./img/javascript.svg" alt="" />
+    <form class="search-form" id="search-form">
+      <input
+        class="search-form-input"
+        type="text"
+        name="searchQuery"
+        autocomplete="off"
+        placeholder="Search images..."
+      />
+      <button type="submit" class="search-form-btn">Search</button>
+    </form>
+    <section class="photo-gallery container">
+      <div class="gallery"></div>
     </section>
 
-    <!-- Loads the specified .html file -->
-    <load ="partials/vite-promo.html" />
-
-    <script type="module" src="/main.js"></script>
+    <script src="./js/index.js" type="module"></script>
   </body>
 </html>

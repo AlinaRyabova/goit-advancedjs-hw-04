@@ -1,118 +1,182 @@
+import axios from 'axios';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 import 'izitoast/dist/css/iziToast.min.css';
 import iziToast from 'izitoast';
-import { searchImages } from './pixabayApi';
 
-document.addEventListener('DOMContentLoaded', function () {
-  const form = document.getElementById('search-form');
-  const gallery = document.querySelector('.gallery');
-  const lightbox = new SimpleLightbox('.gallery a');
-  let currentPage = 1;
-  let searchQuery = '';
-  let observer;
+const pixabayAPI = {
+  baseUrl: 'https://pixabay.com/api/',
+  key: '40817348-8cf9cc617061525653a12724b',
+  image_type: 'photo',
+  orientation: 'horizontal',
+  safesearch: 'true',
+  order: 'popular',
+  page: '1',
+  per_page: '40',
+};
 
-  form.addEventListener('submit', async function (event) {
-    event.preventDefault();
-    searchQuery = this.elements.searchQuery.value.trim();
+const searchForm = document.querySelector('.search-form');
+const gallerySelector = document.querySelector('.gallery');
+const btnLoadMore = document.querySelector('.load-more');
 
-    if (!searchQuery) {
-      showErrorMessage('Please enter a search query');
-      return;
-    }
-    gallery.addEventListener('click', function (event) {
-      if (event.target.classList.contains('js-card-link')) {
-        event.preventDefault();
-        lightbox.open();
-      }
-    });
+const markupData = {
+  markup: '',
+  htmlCode: '',
+};
 
-    gallery.innerHTML = '';
-    observer = new IntersectionObserver(handleIntersection, { threshold: 0.2 });
+let searchQueryResult = '';
+let q = '';
+let pageN = 1;
+const gallery = new SimpleLightbox('.gallery a', {
+  enableKeyboard: true,
+});
 
-    try {
-      const images = await searchImages(searchQuery, currentPage);
+searchForm.addEventListener('submit', async e => {
+  e.preventDefault();
 
-      if (images.length === 0) {
-        showInfoMessage(
-          'Sorry, there are no images matching your search query. Please try again.'
-        );
-      } else {
-        renderImages(images, gallery);
-        lightbox.refresh();
-        observer.observe(gallery);
-      }
-    } catch (error) {
-      console.error('Error fetching images:', error);
-      showErrorMessage(
-        'An error occurred while fetching images. Please try again later.'
-      );
-    }
-  });
+  const {
+    elements: { searchQuery },
+  } = e.target;
+  searchQueryResult = searchQuery.value.trim();
 
-  function handleIntersection(entries) {
-    if (entries[0].isIntersecting) {
-      loadMoreImages();
-    }
-  }
-
-  async function loadMoreImages() {
-    currentPage += 1;
-    observer.disconnect();
-
-    try {
-      const images = await searchImages(searchQuery, currentPage);
-
-      if (images.length > 0) {
-        renderImages(images, gallery);
-        lightbox.refresh();
-        observer.observe(gallery);
-      }
-    } catch (error) {
-      console.error('Error fetching more images:', error);
-      showErrorMessage(
-        'An error occurred while fetching more images. Please try again later.'
-      );
-    }
-  }
-
-  function renderImages(images, container) {
-    const markup = createMarkup({ hits: images });
-    container.innerHTML += markup;
-  }
-
-  function createMarkup(results) {
-    const { hits } = results;
-    return hits
-      .map(
-        hit => `
-        <a href="${hit.largeImageURL}" class="card-link js-card-link">
-          <div class="photo-card">
-            <img src="${hit.webformatURL}" alt="${hit.tags}" loading="lazy" class="photo"/>
-            <div class="info">
-              <p class="info-item"><b>Likes:</b>${hit.likes}</p>
-              <p class="info-item"><b>Views:</b>${hit.views}</p>
-              <p class="info-item"><b>Comments:</b>${hit.comments}</p>
-              <p class="info-item"><b>Downloads:</b>${hit.downloads}</p>
-            </div>
-          </div>
-        </a>
-      `
-      )
-      .join('');
-  }
-
-  function showErrorMessage(message) {
+  if (searchQueryResult === '') {
+    gallerySelector.innerHTML = '';
     iziToast.error({
       title: 'Error',
-      message: message,
+      message:
+        'Sorry, there are no images matching your search query. Please try again.',
     });
+    return;
   }
 
-  function showInfoMessage(message) {
-    iziToast.info({
-      title: 'Info',
-      message: message,
+  if (searchQueryResult !== q) {
+    pageN = 1;
+    pixabayAPI.page = `${pageN}`;
+    gallerySelector.innerHTML = '';
+    btnLoadMore.classList.remove('is-visible');
+  } else {
+    pageN += 1;
+    pixabayAPI.page = `${pageN}`;
+    btnLoadMore.classList.remove('is-visible');
+  }
+
+  q = searchQueryResult;
+
+  try {
+    const results = await fetchPhotos(searchQueryResult);
+    markupData.htmlCode = await createMarkup(results);
+    gallerySelector.insertAdjacentHTML('beforeend', markupData.htmlCode);
+    gallery.refresh();
+
+    const { page, per_page } = pixabayAPI;
+    const { totalHits } = results;
+    const totalPages = Math.ceil(totalHits / per_page);
+
+    if (page <= totalPages) {
+      btnLoadMore.classList.remove('is-visible');
+    }
+
+    iziToast.success({
+      title: 'Success',
+      message: `Hooray! We found ${totalHits} images.`,
+    });
+  } catch (error) {
+    btnLoadMore.classList.add('is-visible');
+    iziToast.error({
+      title: 'Error',
+      message:
+        'Sorry, there are no images matching your search query. Please try again.',
+    });
+  } finally {
+    searchForm.reset();
+  }
+});
+
+btnLoadMore.addEventListener('click', async () => {
+  pageN += 1;
+  pixabayAPI.page = `${pageN}`;
+
+  try {
+    const results = await fetchPhotos(searchQueryResult);
+    markupData.htmlCode = await createMarkup(results);
+    gallerySelector.insertAdjacentHTML('beforeend', markupData.htmlCode);
+    btnLoadMore.classList.add('is-visible');
+    gallery.refresh();
+
+    const { page, per_page } = pixabayAPI;
+    const { totalHits } = results;
+    const totalPages = Math.ceil(totalHits / per_page);
+
+    if (page <= totalPages) {
+      btnLoadMore.classList.remove('is-visible');
+    }
+  } catch (error) {
+    iziToast.error({
+      title: 'Error',
+      message: "We're sorry, but you've reached the end of search results.",
     });
   }
 });
+
+async function fetchPhotos(searchQueryResult) {
+  const {
+    baseUrl,
+    key,
+    image_type,
+    orientation,
+    safesearch,
+    order,
+    page,
+    per_page,
+  } = pixabayAPI;
+  pixabayAPI.page = `${pageN}`;
+
+  const response = await axios.get(
+    `${baseUrl}?key=${key}&q=${searchQueryResult}&image_type=${image_type}&orientation=${orientation}&safesearch=${safesearch}&order=${order}&page=${page}&per_page=${per_page}`
+  );
+  const results = response.data;
+
+  const { totalHits } = results;
+  const totalPages = Math.ceil(totalHits / per_page);
+
+  if (totalHits === 0) {
+    throw new Error();
+  }
+
+  if (page > totalPages) {
+    iziToast.error({
+      title: 'Error',
+      message: "We're sorry, but you've reached the end of search results.",
+    });
+  }
+
+  return results;
+}
+
+async function createMarkup(results) {
+  markupData.markup = results.hits
+    .map(
+      hit =>
+        `<a href="${hit.largeImageURL}" class="card-link js-card-link" ><div class="photo-card">
+        <img src="${hit.webformatURL}" alt="${hit.tags}" loading="lazy"
+        class="photo"/>
+        <div class="info">
+    <p class="info-item">
+      <b>Likes:</b>${hit.likes}
+    </p>
+    <p class="info-item">
+      <b>Views:</b>${hit.views}
+    </p>
+    <p class="info-item">
+      <b>Comments:</b>${hit.comments}
+    </p>
+    <p class="info-item">
+      <b>Downloads:</b>${hit.downloads}
+    </p>
+  </div>
+</div></a>`
+    )
+    .join('');
+
+  return markupData.markup;
+}
